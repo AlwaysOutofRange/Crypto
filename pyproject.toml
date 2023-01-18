@@ -1,0 +1,28 @@
+[tool.poetry]
+name = "Crypto"
+version = "1.0.0"
+description = ""
+authors = ["OutofRange"]
+license = "MIT"
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.12"
+hikari = { git = "https://github.com/hikari-py/hikari" }
+hikari-tanjun = { git = "https://github.com/FasterSpeeding/Tanjun" }
+hikari-yuyo = { git = "https://github.com/FasterSpeeding/Yuyo" }
+pymongo = "^4.3.3"
+python-dotenv = "^0.21.0"
+uvloop = "^0.17.0"
+motor = "^3.1.1"
+
+[tool.poetry.dev-dependencies]
+black = "^22.12.0"
+typing-extensions = "^4.4.0"
+mypy = "^0.991"
+isort = "^5.11.4"
+pytest = "^7.2.0"
+pytest-asyncio = "^0.20.3"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
