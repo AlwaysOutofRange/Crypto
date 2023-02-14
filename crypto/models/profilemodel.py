@@ -9,4 +9,5 @@ class ProfileModel(Model):
     name: str
     money: int
     cryptocoins: int
+    power: int
     miner: dict[str, int] = field(default_factory=dict)

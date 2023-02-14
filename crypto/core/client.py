@@ -13,7 +13,7 @@ class Client(tanjun.Client):
     def load_modules(self: Self) -> Self:
         path = Path("./crypto/modules")
 
-        for ext in path.glob(("**/") + "[!_]*.py"):
+        for ext in path.glob("**/" + "[!_]*.py"):
             super().load_modules(".".join([*ext.parts[:-1], ext.stem]))
 
         return self

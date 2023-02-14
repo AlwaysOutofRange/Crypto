@@ -4,22 +4,17 @@ import os
 import hikari
 import tanjun
 import yuyo
-from dotenv import load_dotenv
-from utils.db import MongoDB
+
+from crypto.core.config import Config
+from crypto.utils.db import MongoDB
 
 from .client import Client
 
 
 class CryptoBot(hikari.GatewayBot):
     def __init__(self) -> None:
-        load_dotenv()
-
+        self.config = Config.load()
         self.logger = logging.getLogger("crypto.main")
-
-        if not os.getenv("TOKEN") and not os.getenv("MONGO_URL"):
-            raise RuntimeError(
-                "The keys 'TOKEN' and 'MONGO_URL' are not set in your .env file."
-            )
 
         super().__init__(token=os.environ["TOKEN"], intents=hikari.Intents.ALL)
         self.component_client = yuyo.ComponentClient.from_gateway_bot(
@@ -29,16 +24,30 @@ class CryptoBot(hikari.GatewayBot):
 
     def create_client(self) -> None:
         self.client = Client.from_gateway_bot(
-            self, declare_global_commands=762272028622585866, mention_prefix=False
+            self,
+            declare_global_commands=762272028622585866,
+            mention_prefix=False,
         )
         (
             self.client.add_client_callback(
                 tanjun.ClientCallbackNames.STARTING, self.component_client.open
-            ).add_client_callback(
+            )
+            .add_client_callback(
                 tanjun.ClientCallbackNames.CLOSING, self.component_client.close
             )
+            .add_client_callback(
+                tanjun.ClientCallbackNames.STARTING, self.db.open
+            )
+            .add_client_callback(
+                tanjun.ClientCallbackNames.CLOSING, self.db.close
+            )
         )
-        self.client.set_type_dependency(yuyo.ComponentClient, self.component_client)
+        self.client.set_type_dependency(
+            yuyo.ComponentClient, self.component_client
+        )
+
+        self.client.set_type_dependency(Config, self.config)
+        self.client.set_type_dependency(MongoDB, self.db)
 
         self.client.load_modules()
 
@@ -53,8 +62,6 @@ class CryptoBot(hikari.GatewayBot):
         super().run()
 
     async def on_starting(self, _: hikari.StartingEvent) -> None:
-        await self.db.init(os.environ["MONGO_URL"], "Crypto", "Profiles", True)
-        self.client.set_type_dependency(MongoDB, self.db)
         self.logger.info("Bot Starting.")
 
     async def on_started(self, _: hikari.StartingEvent) -> None:

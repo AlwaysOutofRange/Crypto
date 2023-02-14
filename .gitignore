@@ -3,3 +3,5 @@ poetry.lock
 .mypy_cache/
 .pytest_cache/
 __pycache__/
+.mind/
+.git/

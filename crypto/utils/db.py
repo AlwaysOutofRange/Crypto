@@ -1,73 +1,71 @@
 import logging
 from typing import Any
 
-import dns.resolver
 import motor.motor_asyncio
+import tanjun
 from pymongo import MongoClient
 from pymongo.collection import Collection
 from pymongo.database import Database
 
-DB = None
+from crypto.core.config import Config
 
 
 class MongoDB:
     def __init__(self) -> None:
-        pass
+        self._logger: Any = None
+        self._client: Any = None
+        self._db: Any = None
+        self._collection: Any = None
 
-    def configure_default_resolver(self) -> None:
-        dns.resolver.default_resolver = dns.resolver.Resolver(configure=False)
-        dns.resolver.default_resolver.nameservers = ["8.8.8.8"]
-
-    @classmethod
-    async def init(
-        cls,
-        url: str,
-        database: str = "default",
-        collection: str = "default",
-        configure_default_resolver: bool = False,
+    async def open(
+        self,
+        config: Config = tanjun.injected(type=Config),
     ) -> None:
-        if configure_default_resolver:
-            cls.configure_default_resolver(cls)
-
-        cls._logger = logging.getLogger("crypto.database")
-        cls._client = motor.motor_asyncio.AsyncIOMotorClient(
-            url, serverSelectionTimeoutMS=300
+        self._logger = logging.getLogger("crypto.database")
+        self._client = motor.motor_asyncio.AsyncIOMotorClient(
+            config.database_url, serverSelectionTimeoutMS=300
         )
-        cls._db = cls._client[database]
-        cls._collection = cls._db[collection]
+        self._db = self._client[config.database_db]
+        self._collection = self._db["Profiles"]
 
     def close(self) -> None:
         self._client.close()
 
-    def get_client(self) -> MongoClient:
+    @property
+    def client(self) -> MongoClient:
         return self._client
 
-    def get_db(self) -> Database:
+    @property
+    def db(self) -> Database:
         return self._db
 
-    def get_collection(self) -> Collection:
+    @db.setter
+    def db(self, value: str) -> None:
+        self._db = self.client[value]
+
+    @property
+    def collection(self) -> Collection:
         return self._collection
 
-    def set_collection(self, collection: str) -> None:
-        if not self._collection == collection:
-            self._collection = self._db[collection]
+    @collection.setter
+    def collection(self, value: str) -> None:
+        self._collection = self.db[value]
 
-    def get_logger(self) -> logging.Logger:
+    @property
+    def logger(self):
         return self._logger
 
     async def test_connection(self) -> bool:
         try:
             server_info = await self._client.server_info()
-            self._logger.info(server_info)
+            self.logger.info(server_info)
             return True
         except Exception as e:
-            self._logger.exception(f"Failed to connect to database. {e}")
+            self.logger.exception(f"Failed to connect to database. {e}")
             return False
 
     async def insert_one(self, document: dict[Any, Any]) -> str:
         result = await self._collection.insert_one(document)
-
-        self._logger.info("Inserted Document to Database")
 
         return repr(result.inserted_id)
 
@@ -75,7 +73,6 @@ class MongoDB:
         result = await self._collection.find_one(query)
 
         if result:
-            self._logger.info("Found requested document.")
             return result
 
         return False
@@ -88,8 +85,6 @@ class MongoDB:
 
     async def delete_one(self, query: dict[Any, Any] = {}) -> int:
         result = await self._collection.delete_many(query)
-
-        self._logger.info(f"Deleted Documents with the filter {query}")
 
         return result.deleted_count
 
@@ -104,8 +99,6 @@ class MongoDB:
         await self._collection.replace_one({"_id": _id}, new_data)
         new = await self._collection.find_one({"_id": _id})
 
-        self._logger.info("Replaced Dokument.")
-
         return old, new
 
     async def update(
@@ -113,8 +106,6 @@ class MongoDB:
     ) -> tuple[int, Any]:
         result = await self._collection.update_one(query, {"$set": update})
         new_document = await self._collection.find_one(query)
-
-        self._logger.info("Updated Dokument")
 
         return result.modified_count, new_document
 
